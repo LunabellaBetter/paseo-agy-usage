@@ -48,18 +48,20 @@ If checks fail, fix the candidate before publishing. The workflow can be re-run 
 
 ## Verify direct Git installation
 
-Use the exact released tag on a test daemon. An alternate ID avoids replacing an existing local development install:
+Use the exact released tag on a test daemon. If the local development plugin is enabled, disable it first: the usage source ID `antigravity` is global, so two copies cannot run together. An alternate plugin ID preserves the development installation's source configuration.
 
 ```bash
+paseo plugin disable paseo-agy-usage
 paseo plugin add git:breathi3552/paseo-agy-usage --ref v0.1.0 --id paseo-agy-usage-release-check
 paseo plugin ls
 paseo plugin logs paseo-agy-usage-release-check
 ```
 
-Paseo runs the manifest's locked runtime-dependency installation. Verify the Usage card, then remove the temporary installation:
+Paseo runs the manifest's locked runtime-dependency installation. Verify the Usage card, then remove the temporary installation and re-enable the development plugin. Restore the development plugin even if the smoke test fails. On a separate test daemon with no development copy, omit the disable/enable commands.
 
 ```bash
 paseo plugin remove paseo-agy-usage-release-check
+paseo plugin enable paseo-agy-usage
 ```
 
 The selector chooses the initial content; `--ref` is not a permanent update pin. See [Paseo plugin sources](https://paseo.sh/docs/plugins/reference#plugin-sources) for update behavior.
@@ -70,7 +72,7 @@ Repository publication and registry approval are separate steps. After host acce
 
 1. Open the [plugin submission form](https://github.com/getpaseo/plugins/issues/new?template=submit-plugin.yml).
 2. Use **Antigravity Usage** as the title and provide `https://github.com/breathi3552/paseo-agy-usage` with the release tag as the source.
-3. Include a redacted screenshot of the native Usage card if requested by the reviewer. Add a real screenshot under `assets/` and declare it in manifest `media` before using it as listing media; the icon is not an interface screenshot.
+3. Prepare a redacted screenshot of the native Usage card before submission. Visual listings require an interface image; the icon does not count. Either commit the screenshot under `assets/` and declare it in manifest `media`, or provide a public image URL in the submission or review PR. The public-URL route does not require a manifest change.
 4. The repository already includes an English `OVERVIEW.md`, a PNG listing icon, the SVG usage-source icon, and a locked preparation command.
 
 After approval, users can install the registry listing without the `git:` prefix. Until then, document direct Git installation.

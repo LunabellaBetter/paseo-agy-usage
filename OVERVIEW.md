@@ -4,7 +4,7 @@ Shows Antigravity CLI (`agy`) quotas in Paseo's **Settings → Usage** page. The
 
 ## Setup
 
-Requires Paseo 0.11.0 or later, a locally installed `agy`, and an existing Antigravity login saved under the user running the Paseo daemon. Windows uses Credential Manager, macOS uses Keychain, and Linux requires `secret-tool` and an accessible, unlocked Secret Service session. Windows has been verified with a real login and quota responses. macOS and Linux await real-host verification.
+Requires Paseo 0.11.0 or later, a locally installed `agy`, an existing Antigravity login saved under the user running the Paseo daemon, and npm on the daemon host's PATH for locked dependency preparation. Windows uses Credential Manager, macOS uses Keychain, and Linux requires `secret-tool` and an accessible, unlocked Secret Service session. Windows has been verified with a real login and quota responses. macOS and Linux await real-host verification.
 
 ## Credentials and quota data
 

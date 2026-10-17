@@ -102,8 +102,8 @@ server/usage.test.ts            discover / fetch 接缝处的行为测试
 - [x] 重绘 UsageSource 单色 SVG 与仓库/插件列表彩色 PNG 图标。
 - [x] GitHub 安装声明锁定依赖准备命令；保留 `private: true`，不发布 npm 包。
 - [x] Node.js 24 开发环境、Windows / Linux CI、tag 触发的 GitHub Release 工作流。
-- [ ] GitHub 仓库推送与 CI 检查。
-- [ ] 真实 Git 安装冒烟验证。
+- [x] 已推送公开仓库 `breathi3552/paseo-agy-usage`；Windows / Linux CI 均通过。
+- [x] 真实 Git 安装冒烟验证：远程提交 `bfc00c7` 安装为 running，日志为 Plugin ready；测试安装已移除，本地开发插件已恢复运行。UsageSource ID 是全局的，验证第二份安装前需停用原实例。
 - [ ] 首个正式版本 tag 与 Paseo 插件市场提交（发布准备完成后单独执行）。
 
 ## 4. 开发与复验
