@@ -99,7 +99,7 @@ server/usage.test.ts            discover / fetch 接缝处的行为测试
 
 ### 阶段六：GitHub 发布准备
 - [x] 英文 README、英文 OVERVIEW、MIT LICENSE、CHANGELOG 与发布指南。
-- [x] 重绘 UsageSource 单色 SVG 与仓库/插件列表彩色 PNG 图标。
+- [x] 重绘 UsageSource 单色 SVG 与仓库/插件列表 PNG 图标：上方 Antigravity 标志、下方细圆角进度条；列表使用单一砖红色，无渐变。
 - [x] `assets/marketplace/usage-dark.png`：Windows 原生卡片实拍，账号邮箱已不透明遮盖；已接入 README 与 manifest media。
 - [x] GitHub 安装声明锁定依赖准备命令；保留 `private: true`，不发布 npm 包。
 - [x] Node.js 24 开发环境、Windows / Linux CI、tag 触发的 GitHub Release 工作流。
