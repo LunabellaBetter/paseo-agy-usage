@@ -72,7 +72,7 @@ Repository publication and registry approval are separate steps. After host acce
 
 1. Open the [plugin submission form](https://github.com/getpaseo/plugins/issues/new?template=submit-plugin.yml).
 2. Use **Antigravity Usage** as the title and provide `https://github.com/breathi3552/paseo-agy-usage` with the release tag as the source.
-3. Prepare a redacted screenshot of the native Usage card before submission. Visual listings require an interface image; the icon does not count. Either commit the screenshot under `assets/` and declare it in manifest `media`, or provide a public image URL in the submission or review PR. The public-URL route does not require a manifest change.
+3. Use the redacted native Usage-card screenshot at `assets/marketplace/usage-dark.png`, already declared in manifest `media`. It was captured from Paseo on Windows using live quota data, with the account email removed by an opaque mask. Refresh it when the visible UI changes. Visual listings require an interface image; the icon does not count. Additional images can be committed and declared in `media`, or supplied as public URLs in the submission or review PR without a manifest change.
 4. The repository already includes an English `OVERVIEW.md`, a PNG listing icon, the SVG usage-source icon, and a locked preparation command.
 
 After approval, users can install the registry listing without the `git:` prefix. Until then, document direct Git installation.

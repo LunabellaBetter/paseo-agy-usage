@@ -3,6 +3,7 @@
   "name": "Antigravity Usage",
   "description": "Shows Antigravity CLI quotas, reset times, and account details in Paseo's native Usage settings",
   "icon": "assets/icon.png",
+  "media": ["assets/marketplace/usage-dark.png"],
   "build": [["npm", "ci", "--omit=dev", "--ignore-scripts"]],
   "requirements": {
     "paseo": ">=0.11.0"

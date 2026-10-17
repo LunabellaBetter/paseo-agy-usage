@@ -11,3 +11,4 @@
 - Windows Credential Manager, macOS Keychain, and Linux Secret Service adapters. Windows has live-host verification.
 - Behavior-focused tests, CI, and a GitHub-only release workflow.
 - New monochrome usage-source icon and a color listing icon.
+- A redacted screenshot of the native Usage card, included in the README and plugin listing media.

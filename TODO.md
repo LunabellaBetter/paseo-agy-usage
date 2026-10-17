@@ -90,7 +90,7 @@ server/usage.test.ts            discover / fetch 接缝处的行为测试
 - [x] 本机真实接口验证：报告为 available，计划为 Google AI Pro，4 个桶均有有效读数与重置时间；未记录令牌或账号邮箱。
 - [x] 安装到本机 Paseo 0.11.4（事先确认 pluginsEnabled 已开启），插件状态为 running。
 - [x] 检查 `paseo plugin logs paseo-agy-usage`：Plugin ready，无启动错误。
-- [ ] 在 Paseo 客户端手动打开 Settings → Usage，确认卡片、百分比与倒计时的视觉表现。
+- [x] 在 Paseo 客户端 Settings → Usage 深色模式确认卡片、计划标签、百分比与倒计时；已保存真实界面截图并完全遮盖账号邮箱。
 
 ### 阶段五：可选扩展
 - [ ] 读取本地 conversations 数据库，提供 Turn-by-Turn 消耗统计。
@@ -100,6 +100,7 @@ server/usage.test.ts            discover / fetch 接缝处的行为测试
 ### 阶段六：GitHub 发布准备
 - [x] 英文 README、英文 OVERVIEW、MIT LICENSE、CHANGELOG 与发布指南。
 - [x] 重绘 UsageSource 单色 SVG 与仓库/插件列表彩色 PNG 图标。
+- [x] `assets/marketplace/usage-dark.png`：Windows 原生卡片实拍，账号邮箱已不透明遮盖；已接入 README 与 manifest media。
 - [x] GitHub 安装声明锁定依赖准备命令；保留 `private: true`，不发布 npm 包。
 - [x] Node.js 24 开发环境、Windows / Linux CI、tag 触发的 GitHub Release 工作流。
 - [x] 已推送公开仓库 `breathi3552/paseo-agy-usage`；Windows / Linux CI 均通过。

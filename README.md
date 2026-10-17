@@ -4,6 +4,10 @@
 
 Antigravity CLI (`agy`) quota monitoring in [Paseo](https://paseo.sh)'s native **Settings → Usage** page.
 
+![Antigravity usage card with four quota windows and a Google AI Pro badge](./assets/marketplace/usage-dark.png)
+
+*Captured from Paseo on Windows with live quota data. The account email is redacted.*
+
 ## Highlights
 
 - **Four quota windows:** Gemini and Claude & GPT, each with 5-hour and weekly quotas.
