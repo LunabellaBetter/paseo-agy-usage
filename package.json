@@ -3,10 +3,22 @@
   "version": "0.1.0",
   "type": "module",
   "private": true,
-  "description": "Antigravity CLI (agy) usage and quota integration for Paseo",
+  "description": "Antigravity CLI quotas, reset times, and account details in Paseo's native Usage settings",
+  "license": "MIT",
+  "author": "breathi3552",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/breathi3552/paseo-agy-usage.git"
+  },
+  "homepage": "https://github.com/breathi3552/paseo-agy-usage#readme",
+  "bugs": {
+    "url": "https://github.com/breathi3552/paseo-agy-usage/issues"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "test": "tsx --test server/*.test.ts",
+    "check": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [
     "paseo",
@@ -16,10 +28,13 @@
     "usage",
     "quota"
   ],
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
   "devDependencies": {
-    "@getpaseo/plugin": ">=0.9.2",
+    "@getpaseo/plugin": "0.11.4",
     "@types/node": "^22.10.0",
-    "typescript": "^5.7.0",
-    "zod": "^3.23.8"
+    "tsx": "^4.20.0",
+    "typescript": "^5.7.0"
   }
 }

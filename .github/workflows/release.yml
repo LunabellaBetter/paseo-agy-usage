@@ -1,0 +1,57 @@
+name: Release to GitHub
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout release tag
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - name: Validate release version and source
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          version="$(node -p 'require("./package.json").version')"
+          test "$TAG" = "v$version"
+          test "$(node -p 'require("./package-lock.json").version')" = "$version"
+          test "$(node -p 'require("./package-lock.json").packages[""].version')" = "$version"
+          git merge-base --is-ancestor HEAD origin/main
+      - name: Install locked dependencies
+        run: npm ci --ignore-scripts
+      - name: Check release candidate
+        run: |
+          npm run check
+          git diff --exit-code
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "Release $TAG already exists."
+          else
+            gh release create "$TAG" --verify-tag --title "$TAG" --generate-notes
+          fi
