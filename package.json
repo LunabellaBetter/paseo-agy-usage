@@ -1,0 +1,25 @@
+{
+  "name": "paseo-agy-usage",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Antigravity CLI (agy) usage and quota integration for Paseo",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "tsc"
+  },
+  "keywords": [
+    "paseo",
+    "paseo-plugin",
+    "antigravity",
+    "agy",
+    "usage",
+    "quota"
+  ],
+  "devDependencies": {
+    "@getpaseo/plugin": ">=0.9.2",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0",
+    "zod": "^3.23.8"
+  }
+}
