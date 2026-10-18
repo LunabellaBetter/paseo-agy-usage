@@ -6,11 +6,11 @@ import {
   type UsageScope,
 } from "@getpaseo/plugin/server/usage";
 import { inputSchema } from "../shared/input.js";
-import { createNodeProbe, ProbeError, type AntigravityProbe } from "./probe.js";
+import { createNodeProbe, ProbeError, type AntigravityProbe, type StoredCredential } from "./probe.js";
 import { mapQuotaSummary, readTierLabel } from "./quota.js";
 import { UsageError } from "./errors.js";
 
-const BASE_URL = "https://cloudcode-pa.googleapis.com/v1internal:";
+const BASE_URL = "https://daily-cloudcode-pa.googleapis.com/v1internal:";
 const TOKEN_MARGIN_MS = 60_000;
 
 export class QuotaHttpError extends UsageError {
@@ -44,6 +44,7 @@ export async function withTimeout<T>(
 async function request(
   method: "retrieveUserQuotaSummary" | "loadCodeAssist",
   token: string,
+  userAgent: string,
   fetchApi: typeof fetch,
   signal: AbortSignal,
 ): Promise<unknown> {
@@ -55,9 +56,9 @@ async function request(
         "content-type": "application/json",
         accept: "application/json",
         authorization: `Bearer ${token}`,
-        "user-agent": "antigravity",
+        "user-agent": userAgent,
       },
-      body: method === "loadCodeAssist" ? JSON.stringify({ metadata: { pluginType: "GEMINI" } }) : "{}",
+      body: method === "loadCodeAssist" ? JSON.stringify({ metadata: { ideType: "ANTIGRAVITY" } }) : "{}",
       signal,
       redirect: "error", // Never forward bearer credentials to a redirected host.
     });
@@ -104,24 +105,46 @@ export function createUsageHandlers(dependencies: UsageDependencies) {
         return { status: "error", error: "This Antigravity credential store belongs to another operating system." };
       }
       try {
-        // Re-read for every fetch. No access-token cache can outlive an agy login switch.
-        const credential = await withTimeout(4_000, "credential lookup", (signal) => probe.readCredential(signal));
-        if (!credential) {
-          throw new ProbeError("The Antigravity login disappeared. Sign in with agy and rediscover usage accounts.");
-        }
-        if (credential.expiresAtMs !== null && credential.expiresAtMs <= now() + TOKEN_MARGIN_MS) {
-          return unavailable({ kind: "expired", expiresAt: new Date(credential.expiresAtMs).toISOString(), refreshedBy: "agy" });
-        }
-        const token = credential.accessToken;
-        if (!token) return unavailable({ kind: "rejected", status: 401, refreshedBy: "agy" });
-
-        // Plan is best effort; a tier lookup failure must not hide valid quota.
-        // Both run concurrently, keeping total fetch time below the host's 20s deadline.
-        const [document, planLabel] = await Promise.all([
-          withTimeout(6_500, "quota request", (signal) => request("retrieveUserQuotaSummary", token, fetchApi, signal)),
-          withTimeout(2_500, "plan lookup", async (signal) => readTierLabel(await request("loadCodeAssist", token, fetchApi, signal))).catch(() => null),
-        ]);
-        return mapQuotaSummary(document, planLabel);
+        // 续期和重试共用截止时间，留在宿主的 20 秒额度请求期限内。
+        return await withTimeout(18_000, "usage refresh", async (signal) => {
+          const readCredential = async () => {
+            const credential = await probe.readCredential(signal);
+            if (!credential) {
+              throw new ProbeError("The Antigravity login disappeared. Sign in with agy and rediscover usage accounts.");
+            }
+            return credential;
+          };
+          const credential = await readCredential();
+          // 服务按 CLI 身份区分 Gemini 额度池，版本取自本机 agy。
+          const version = await probe.readVersion(signal);
+          const userAgent = `antigravity/cli/${version}`;
+          const getReport = async (login: StoredCredential): Promise<UsageReport> => {
+            if (login.expiresAtMs !== null && login.expiresAtMs <= now() + TOKEN_MARGIN_MS) {
+              return unavailable({ kind: "expired", expiresAt: new Date(login.expiresAtMs).toISOString(), refreshedBy: "agy" });
+            }
+            const token = login.accessToken;
+            if (!token) return unavailable({ kind: "rejected", status: 401, refreshedBy: "agy" });
+            // 套餐查询失败不掩盖有效额度，也不触发无关的登录续期。
+            const [document, planLabel] = await Promise.all([
+              request("retrieveUserQuotaSummary", token, userAgent, fetchApi, signal),
+              withTimeout(2_500, "plan lookup", async (planSignal) => readTierLabel(
+                await request("loadCodeAssist", token, userAgent, fetchApi, AbortSignal.any([signal, planSignal])),
+              )).catch(() => null),
+            ]);
+            return mapQuotaSummary(document, planLabel);
+          };
+          let report: UsageReport;
+          try {
+            report = await getReport(credential);
+          } catch (error) {
+            if (!(error instanceof QuotaHttpError) || (error.status !== 401 && error.status !== 403)) throw error;
+            report = unavailable({ kind: "rejected", status: error.status, refreshedBy: "agy" });
+          }
+          if (report.status !== "unavailable" || report.problem.kind === "no_quota") return report;
+          await probe.refreshLogin(signal);
+          // CLI 可能轮换了 token，必须重新读取，且每次取数最多续期一次。
+          return getReport(await readCredential());
+        });
       } catch (error) {
         if (error instanceof QuotaHttpError && (error.status === 401 || error.status === 403)) {
           return unavailable({ kind: "rejected", status: error.status, refreshedBy: "agy" });

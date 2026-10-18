@@ -1,5 +1,3 @@
 # Antigravity Usage
 
-Shows Antigravity CLI (`agy`) quotas in Paseo's **Settings → Usage**.
-
-Reads credentials directly from your local OS keyring. Requires Paseo >= 0.11.0 and `agy` logged in.
+View Antigravity CLI (`agy`) quota remaining and reset times in Paseo. Requires Paseo >= 0.11.0 and a local `agy` login; Linux also requires `secret-tool` and an unlocked system keyring.

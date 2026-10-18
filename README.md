@@ -1,6 +1,6 @@
 # Paseo Antigravity Usage
 
-Paseo plugin that shows your Antigravity CLI (`agy`) quotas in **Settings → Usage**.
+View Antigravity CLI (`agy`) quota remaining and reset times in Paseo.
 
 ![Antigravity usage card](./assets/marketplace/usage-dark.png)
 
@@ -10,11 +10,7 @@ Paseo plugin that shows your Antigravity CLI (`agy`) quotas in **Settings → Us
 paseo plugin add git:breathi3552/paseo-agy-usage
 ```
 
-Requires Paseo >= 0.11.0 and a local `agy` login.
-
-## How it works
-
-Reads `agy` credentials from your OS keyring (Windows / macOS / Linux) and queries Google's quota API directly.
+Requires Paseo >= 0.11.0 and a local `agy` login; Linux also requires `secret-tool` and an unlocked system keyring.
 
 ## Development
 

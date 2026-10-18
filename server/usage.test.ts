@@ -6,8 +6,8 @@ import { createUsageHandlers } from "./usage.js";
 const NOW = Date.parse("2030-01-01T00:00:00Z");
 const BINARY = "C:\\Users\\test\\AppData\\Local\\agy\\bin\\agy.exe";
 const INPUT = { store: "windows-credential-manager" } as const;
-const QUOTA_URL = "https://cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary";
-const PLAN_URL = "https://cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
+const QUOTA_URL = "https://daily-cloudcode-pa.googleapis.com/v1internal:retrieveUserQuotaSummary";
+const PLAN_URL = "https://daily-cloudcode-pa.googleapis.com/v1internal:loadCodeAssist";
 const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
 const quota = (buckets: unknown[]) => ({ groups: [{ buckets }] });
 const QUOTA = quota([
@@ -27,6 +27,7 @@ function login(email = "test@example.com", accessToken = "test-access", expiry =
 
 const transport: typeof fetch = async (url, options) => {
   if (new Headers(options?.headers).get("authorization") !== "Bearer test-access") return json({}, 401);
+  if (new Headers(options?.headers).get("user-agent") !== "antigravity/cli/1.4.2") return json(quota([]));
   if (String(url) === QUOTA_URL) return json(QUOTA);
   if (String(url) === PLAN_URL) return json({ paidTier: { id: "g1-pro-tier" }, currentTier: { id: "free-tier" } });
   throw new Error("Unexpected service endpoint");
@@ -36,6 +37,7 @@ const transport: typeof fetch = async (url, options) => {
 function usage(options: {
   cliInstalled?: boolean;
   readStore?: () => CommandResult;
+  renewLogin?: () => CommandResult;
   fetchApi?: typeof fetch;
 } = {}) {
   return createUsageHandlers({
@@ -44,7 +46,11 @@ function usage(options: {
       env: { LOCALAPPDATA: "C:\\Users\\test\\AppData\\Local" },
       home: "C:\\Users\\test",
       isExecutable: async (path) => options.cliInstalled !== false && path === BINARY,
-      run: async () => options.readStore?.() ?? { stdout: login(), exitCode: 0 },
+      run: async (file, args) => file === BINARY
+        ? args[0] === "models"
+          ? options.renewLogin?.() ?? { stdout: "", exitCode: 0 }
+          : { stdout: "1.4.2\n", exitCode: 0 }
+        : options.readStore?.() ?? { stdout: login(), exitCode: 0 },
     }),
     fetchApi: options.fetchApi ?? transport,
     now: () => NOW,
@@ -66,6 +72,33 @@ test("a signed-in account produces the email footer, plan badge and four quota w
   ]);
   assert.equal(report.windows.find(({ id }) => id === "gemini-weekly")?.resetsAt, "2030-01-08T00:00:00.000Z");
   assert.deepEqual(report.details, []); // No duplicate Plan or Account rows.
+});
+
+test("Windows 在没有 pwsh 和 PowerShell PATH 时仍能读取登录并获取额度", async () => {
+  const executables: Record<string, string> = {
+    [BINARY]: "1.4.2\n",
+    "D:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe": login(),
+  };
+  const api = createUsageHandlers({
+    probe: createNodeProbe({
+      platform: "win32",
+      env: { SystemRoot: "D:\\Windows", LOCALAPPDATA: "C:\\Users\\test\\AppData\\Local", PATH: "" },
+      home: "C:\\Users\\test",
+      isExecutable: async (path) => path === BINARY,
+      run: async (file) => {
+        const stdout = executables[file];
+        if (stdout === undefined) throw new Error("Command not found");
+        return { stdout, exitCode: 0 };
+      },
+    }),
+    fetchApi: transport,
+    now: () => NOW,
+  });
+  const [account] = await api.discover({ kind: "global" });
+  assert.equal(account?.label, "test@example.com");
+  const report = await api.fetch(account!.input);
+  assert.ok(report.status === "available");
+  assert.equal(report.windows.find(({ id }) => id === "gemini-weekly")?.remainingPct, 25);
 });
 
 test("discovery shows no account without a CLI/login and never assigns the global login to a session", async () => {
@@ -101,6 +134,46 @@ test("expired, rejected and quota-less logins produce native unavailable diagnos
     assert.equal(report.problem.kind, scenario.problem.kind);
     if (scenario.problem.kind !== "no_quota") assert.deepEqual(report.problem, scenario.problem);
   }
+});
+
+test("expired logins are renewed by agy and quota uses the newly stored token", async () => {
+  let stored = login("test@example.com", "expired-access", NOW - 1);
+  const report = await usage({
+    readStore: () => ({ stdout: stored, exitCode: 0 }),
+    renewLogin: () => {
+      stored = login();
+      return { stdout: "", exitCode: 0 };
+    },
+  }).fetch(INPUT);
+  assert.ok(report.status === "available");
+  assert.equal(report.windows.find(({ id }) => id === "gemini-weekly")?.remainingPct, 25);
+});
+
+test("quota authentication rejection renews the login before retrying with its new token", async () => {
+  for (const status of [401, 403]) {
+    let stored = login("test@example.com", "rejected-access");
+    const report = await usage({
+      readStore: () => ({ stdout: stored, exitCode: 0 }),
+      renewLogin: () => {
+        stored = login();
+        return { stdout: "", exitCode: 0 };
+      },
+      fetchApi: async (url, options) =>
+        new Headers(options?.headers).get("authorization") === "Bearer rejected-access"
+          ? json({}, status) : transport(url, options),
+    }).fetch(INPUT);
+    assert.ok(report.status === "available");
+    assert.equal(report.windows.find(({ id }) => id === "gemini-weekly")?.remainingPct, 25);
+  }
+});
+
+test("failed CLI renewal reports an error without leaking command output", async () => {
+  const report = await usage({
+    readStore: () => ({ stdout: login("test@example.com", "expired-access", NOW - 1), exitCode: 0 }),
+    renewLogin: () => ({ stdout: "private-payload", exitCode: 1 }),
+  }).fetch(INPUT);
+  assert.ok(report.status === "error");
+  assert.ok(!report.error.includes("private-payload"));
 });
 
 test("an unavailable plan label does not hide valid quota", async () => {

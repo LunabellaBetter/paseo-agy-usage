@@ -1,15 +1,13 @@
-import { execFile } from "node:child_process";
+import { execCommand } from "@getpaseo/plugin/server";
 import { constants } from "node:fs";
 import { access, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { posix, win32 } from "node:path";
-import { promisify } from "node:util";
 import { z } from "zod";
 import type { CredentialStore } from "../shared/input.js";
 import { WINDOWS_CREDENTIAL_SCRIPT } from "./windows-credential.js";
 import { UsageError } from "./errors.js";
 
-const execFileAsync = promisify(execFile);
 const KEYRING_PREFIX = "go-keyring-base64:";
 
 export class ProbeError extends UsageError {}
@@ -25,6 +23,8 @@ export interface AntigravityProbe {
   /** Non-secret OS-user/store locator used when account metadata is absent. */
   locator: string;
   locateBinary(): Promise<string | null>;
+  readVersion(signal: AbortSignal): Promise<string>;
+  refreshLogin(signal: AbortSignal): Promise<void>;
   readCredential(signal: AbortSignal): Promise<StoredCredential | null>;
 }
 
@@ -38,6 +38,7 @@ export type CommandRunner = (
   file: string,
   args: readonly string[],
   signal: AbortSignal,
+  timeoutMs?: number,
 ) => Promise<CommandResult>;
 
 function exitCode(error: unknown): number | null {
@@ -45,13 +46,13 @@ function exitCode(error: unknown): number | null {
   return typeof error.code === "number" ? error.code : null;
 }
 
-const runCommand: CommandRunner = async (file, args, signal) => {
+const runCommand: CommandRunner = async (file, args, signal, timeoutMs = 3_500) => {
   try {
-    const { stdout } = await execFileAsync(file, [...args], {
+    const { stdout } = await execCommand(file, [...args], {
       encoding: "utf8",
-      timeout: 3_500,
+      timeout: timeoutMs,
       maxBuffer: 128 * 1024,
-      windowsHide: true,
+      shell: false,
       signal,
     });
     return { stdout, exitCode: 0 };
@@ -63,7 +64,7 @@ const runCommand: CommandRunner = async (file, args, signal) => {
         && typeof error.stderr === "string" && error.stderr.trim() !== "";
       return { stdout: "", exitCode: code, hasDiagnostic };
     }
-    // execFile errors can carry stdout containing credentials. Never propagate them.
+    // 子进程错误可能携带含有凭据的 stdout，禁止原样抛出。
     throw new ProbeError("Cannot run the system credential reader. Check OS keyring availability.");
   }
 };
@@ -189,12 +190,35 @@ export function createNodeProbe(options: ProbeOptions = {}): AntigravityProbe {
       }
       return null;
     },
+    async readVersion(signal) {
+      const binary = await this.locateBinary();
+      if (!binary) throw new ProbeError("Cannot find agy. Install Antigravity CLI to read its quota.");
+      const result = await run(binary, ["--version"], signal);
+      const version = result.stdout.trim();
+      if (result.exitCode !== 0 || !/^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.+-]+)?$/.test(version)) {
+        throw new ProbeError("Cannot read the Antigravity CLI version.");
+      }
+      return version;
+    },
+    async refreshLogin(signal) {
+      try {
+        const binary = await this.locateBinary();
+        if (!binary) throw new ProbeError("Cannot find agy.");
+        // 让 CLI 自己续期和保存凭据，不直接兑换 refresh token，也不启动聊天。
+        const result = await run(binary, ["models"], signal, 8_000);
+        if (result.exitCode !== 0) throw new ProbeError("agy models failed.");
+      } catch {
+        throw new ProbeError("Antigravity login renewal failed. Sign in with agy, then refresh usage.");
+      }
+    },
     async readCredential(signal) {
       let result: CommandResult;
       if (windows) {
-        const powershell = env.SystemRoot
-          ? path.join(env.SystemRoot, "System32", "WindowsPowerShell", "v1.0", "powershell.exe")
-          : "powershell.exe";
+        // 定位 Windows 自带的读取器，不依赖 pwsh 或 PATH。
+        const powershell = path.join(
+          env.SystemRoot ?? env.WINDIR ?? "C:\\Windows",
+          "System32", "WindowsPowerShell", "v1.0", "powershell.exe",
+        );
         result = await run(powershell, [
           "-NoProfile", "-NonInteractive", "-EncodedCommand",
           Buffer.from(WINDOWS_CREDENTIAL_SCRIPT, "utf16le").toString("base64"),

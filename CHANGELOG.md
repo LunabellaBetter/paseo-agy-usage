@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 — 2026-10-18
+
+### Fixed
+
+- Match Gemini quotas and reset times to `agy /usage` using the CLI service endpoint and installed CLI version.
+- Attempt login renewal once via `agy models` for expired credentials, missing access tokens, or HTTP 401/403, then reload credentials and quotas. Requests have an 18-second deadline and sanitized errors; opening the popover remains subject to host caching.
+- Use built-in Windows PowerShell 5.1 instead of requiring PowerShell 7, and reuse the public Paseo SDK's `execCommand()`. macOS/Linux readers are unchanged; no new runtime dependencies.
+
+## 0.1.0
 
 ### Added
 
